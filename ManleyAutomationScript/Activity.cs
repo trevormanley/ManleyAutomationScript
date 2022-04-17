@@ -35,6 +35,7 @@ namespace ManleyAutomationScript {
         private Dictionary<Regex,Activity> UsableExpressions = new();
         private Regex RunCSharpExpression = new Regex(@"Run:\n\s*```csharp\n(?<code>.*)```",RegexOptions.Singleline);
         public void Execute(ActivityState state){
+            state.LastActivity = this;
             OrganizeUsableExpressions(Parent);
             foreach(var module in state.Modules){
                 OrganizeUsableExpressions(module);
@@ -44,9 +45,8 @@ namespace ManleyAutomationScript {
                 var runMatch = RunCSharpExpression.Match(step.Text);
                 if(runMatch.Success){
                     foundAction = true;
-                    state.GetExecutedSteps().Add(step.Text);
+                    //state.GetExecutedSteps().Add(step.Text);
                     var action = CSharpScriptRunner.CreateFromText(runMatch.Groups["code"].Value);
-                    state.LastStep = step;
                     action(state);
                     continue;
                 }
@@ -106,18 +106,25 @@ namespace ManleyAutomationScript {
             var depth = spaceCount / 4;
             var trimAmount = 0;
             for(var walk = 0; walk < depth; walk++){
-                if(lastStep.Children.Any()){
-                    lastStep = lastStep.Children.Last();
-                    trimAmount += 4;
-                    continue;
-                }
                 var maybeNewStep = StepStartingExpression.Match(line.Substring(trimAmount + 4));
                 if(maybeNewStep.Success){
                     lastStep.Children.Add(new Step(this){Text = maybeNewStep.Groups["text"].Value});
                     return;
                 }
+                if(lastStep.Children.Any()){
+                    lastStep = lastStep.Children.Last();
+                    trimAmount += 4;
+                    continue;
+                }
             }
             lastStep.Text += "\n" + line.Substring(trimAmount);
+        }
+        public Activity Fork(List<Step> childSteps)
+        {
+            var clone = new Activity(Parent, $"{Name}::Fork");
+            clone.Steps = childSteps;
+            clone.UsableExpressions = UsableExpressions;
+            return clone;
         }
     }
 }

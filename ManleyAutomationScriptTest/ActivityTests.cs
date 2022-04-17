@@ -19,6 +19,22 @@ using System.Linq;
 namespace ManleyAutomationScriptTests {
     public class ActivityTests {
         [Fact]
+        public void ShouldFork(){
+            var module = new Module("Test Module","");
+            var activity = new Activity(module, "This is a test");
+            var step = new Step(activity);
+            var fork = activity.Fork(new System.Collections.Generic.List<Step>(){step});
+            Assert.Equal("Test Module::This is a test::Fork", fork.QualifiedName);
+        }
+        [Fact]
+        public void ShouldNotOwnForkedSteps(){
+            var module = new Module("Test Module","");
+            var activity = new Activity(module, "This is a test");
+            var step = new Step(activity);
+            var fork = activity.Fork(new System.Collections.Generic.List<Step>(){step});
+            Assert.Equal(activity,fork.Steps.Single().OwningActivity);
+        }
+        [Fact]
         public void ShouldFindActivityFromExpression(){
             var module = new Module("Test Module","");
             var otherActivity = new Activity(module, "Other thing");
@@ -91,6 +107,15 @@ namespace ManleyAutomationScriptTests {
             Assert.Equal("Make a sandwitch", activity.Steps.First().Children.First().Text);
         }
         [Fact]
+        public void ShouldParseChildStepsMultiple(){
+            var module = new Module("Test Module", "");
+            var activity = new Activity(module, "This is a test");
+            activity.Parse("1. Create a step");
+            activity.Parse("    * Make a sandwitch");
+            activity.Parse("    * Eat sandwitch");
+            Assert.Equal("Eat sandwitch", activity.Steps.First().Children.Last().Text);
+        }
+        [Fact]
         public void ShouldParseChildStepsContinued(){
             var module = new Module("Test Module", "");
             var activity = new Activity(module, "This is a test");
@@ -107,7 +132,7 @@ namespace ManleyAutomationScriptTests {
             activity.Parse("    * Make a sandwitch");
             activity.Parse("        There is some other stuff here");
             activity.Parse("            AndSomeHere");
-            activity.Parse("        * Eat sandwitch");
+            activity.Parse("        1. Eat sandwitch");
             Assert.Equal("Eat sandwitch", activity.Steps.First().Children.First().Children.First().Text);
         }
         [Fact]

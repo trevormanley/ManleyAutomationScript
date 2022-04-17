@@ -29,6 +29,34 @@ public class SampleTests {
 1. Add 7 to 70 and store as `result`
 2. Add 623 to `result` and store as `result`
 
+## Test Fork
+1. Set `N1` to 10
+2. Set `N2` to 10
+3. Compare `N1` to `N2`
+    * True
+        1. Set `N3` to 30
+    * False
+        2. Set `N3` to 10
+4. Compare `N1` to `N3`
+    * True
+        1. Set `N4` to 20
+    * False
+        1. Set `N4` to 0
+
+## Set
+
+---
+Set `(?<var>.*?)` to (?<val>.*)
+---
+
+1. Run:
+    ```csharp
+    return (ActivityState state) => {
+        var groups = state.GetLastExpression().Groups;
+        state.Set<string>(groups[""var""].Value, groups[""val""].Value.Trim());
+    };
+    ```
+
 ## Add
 
 ---
@@ -63,6 +91,33 @@ Add (?<first>\d*?) to `(?<var>.*?)` and store as `(?<result>.*?)`
         }
     };
     ```
+
+## Compare
+
+---
+Compare `(?<val>.*?)` to `(?<val2>.*?)`
+---
+
+1. Run:
+   ```csharp
+   using System.Linq;
+   using System;
+   return (ActivityState state) => {
+       var groups = state.GetLastExpression().Groups;
+       if(state.Get<string>(groups[""val""].Value) == state.Get<string>(groups[""val2""].Value))
+       {
+           var nextPath = state.LastStep.Children.First(x => x.Text.Trim() == ""True"").Children;
+           var nextActivity = state.LastActivity.Fork(nextPath);
+           nextActivity.Execute(state);
+       }
+       else {
+           
+           var nextPath = state.LastStep.Children.First(x => x.Text.Trim() == ""False"").Children;
+           var nextActivity = state.LastActivity.Fork(nextPath);
+           nextActivity.Execute(state);
+       }
+   };
+   ``` 
 ";
     }
     private Parser ParseSample()
@@ -83,10 +138,21 @@ Add (?<first>\d*?) to `(?<var>.*?)` and store as `(?<result>.*?)`
         Assert.Equal(700, result);
     }
     [Fact]
+    public void ShouldForkWhenNeeded(){
+        var parser = ParseSample();
+        var state = new ActivityState();
+        var act = parser.Modules.Select(x => x.Activities.First(y => y.QualifiedName == "Common::Test Fork")).Single();
+        act.Execute(state);
+        var numberThree = state.Get<string>("N3");
+        var numberFour = state.Get<string>("N4");
+        Assert.Equal("30", numberThree);
+        Assert.Equal("0",numberFour);
+    }
+    [Fact]
     public void ShouldAddModule()
     {
         Parser parser = ParseSample();
-        Assert.Equal(1, parser.Modules.Count);
+        Assert.Single(parser.Modules);
         Assert.Equal("Common", parser.Modules.First().Name);
     }
 
@@ -94,8 +160,13 @@ Add (?<first>\d*?) to `(?<var>.*?)` and store as `(?<result>.*?)`
     [Fact]
     public void ShouldAddActivities(){
         var parser = ParseSample();
-        Assert.Equal(2, parser.Modules.First().Activities.Count);
-        Assert.Equal("Common::Test Adding", parser.Modules.First().Activities.First().QualifiedName);
-        Assert.Equal("Common::Add", parser.Modules.First().Activities.Last().QualifiedName);
+        Assert.Collection(parser.Modules.First().Activities,
+        a => Assert.Equal("Common::Test Adding",a.QualifiedName),
+        a => Assert.Equal("Common::Test Fork",a.QualifiedName),
+        a => Assert.Equal("Common::Set",a.QualifiedName),
+        a => Assert.Equal("Common::Add",a.QualifiedName),
+        a => Assert.Equal("Common::Compare",a.QualifiedName)
+        );
+
     }
 }

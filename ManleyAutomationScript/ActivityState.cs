@@ -21,8 +21,8 @@ namespace ManleyAutomationScript{
         private List<string> ExecutedSteps = new List<string>();
         public List<Module> Modules {get;set;} = new List<Module>();
         public Match? LastExpression {get;set;} = null;
-
         public Step? LastStep {get;set;} = null;
+        public Activity? LastActivity {get;set;} = null;
         private Dictionary<string, object?> _internalState = new();
         public void Set<T>(string key, T value){
             _internalState[key] = value;
